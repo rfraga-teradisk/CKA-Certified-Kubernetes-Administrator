@@ -32,12 +32,13 @@ If this was useful, a star helps others find it.
 
 If you're time-pressured, here's the fast track:
 
-1. **Run the setup script** — get your aliases and vim config right from day one: [scripts/exam-setup.sh](scripts/exam-setup.sh)
-2. **Do the exercises** — work through the [31 hands-on exercises](exercises/) in order. Each one targets a specific CKA domain.
-3. **Use YAML templates** — reference [TEMPLATES.md](TEMPLATES.md) for all skeleton YAML. Copy, paste, modify.
-4. **Do the mock exam** — practice under exam conditions with timed scenarios.
-5. **Do killer.sh twice** — once 2 weeks out, once 3 days before. See [killer.sh vs the Real Exam](#killersh-vs-the-real-cka-exam).
-6. **Read the exam day strategy** — the [two-pass approach](#exam-day-strategy--time-allocation) saved time on exam day.
+1. **Start a practice cluster** _(if needed)_ — if `kubectl` says connection refused or you don't have a local cluster yet: `bash scripts/init-cluster.sh`. This creates a kind-based k8s 1.35.1 cluster with one command. [Read more](#local-cluster-setup).
+2. **Run the setup script** — get your aliases and vim config right from day one: [scripts/exam-setup.sh](scripts/exam-setup.sh)
+3. **Do the exercises** — work through the [31 hands-on exercises](exercises/) in order. Each one targets a specific CKA domain.
+4. **Use YAML templates** — reference [TEMPLATES.md](TEMPLATES.md) for all skeleton YAML. Copy, paste, modify.
+5. **Do the mock exam** — practice under exam conditions with timed scenarios. See [mock-exams/README.md](mock-exams/README.md) for prep strategy and scoring.
+6. **Do killer.sh twice** — once 2 weeks out, once 3 days before. See [killer.sh vs the Real Exam](#killersh-vs-the-real-cka-exam).
+7. **Read the exam day strategy** — the [two-pass approach](#exam-day-strategy--time-allocation) saved time on exam day.
 
 ---
 
@@ -149,6 +150,66 @@ CKA-Certified-Kubernetes-Administrator/
 
 ### Final Thoughts
 - [Final Words](#final-words)
+
+---
+
+## Local Cluster Setup — Practice with Kind
+
+**Don't have a Kubernetes cluster?** Use the included script to bootstrap a local k8s 1.35.1 cluster via [kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker). Perfect for running through all 31 exercises without needing a kubeadm setup.
+
+### Quick Start: One Command
+
+```bash
+bash scripts/init-cluster.sh
+```
+
+**What it does:**
+- ✅ Detects your OS and architecture (x86_64, aarch64, etc.)
+- ✅ Auto-installs `kind` if missing (v0.31.0)
+- ✅ Validates Docker is running
+- ✅ Creates a named cluster `cka-practice` with k8s 1.35.1
+- ✅ Configures kubeconfig automatically
+- ✅ Prints next steps on success
+
+### Detailed Setup (if needed manually)
+
+**Prerequisites:**
+- [Docker](https://docs.docker.com/get-docker/) — installed and running
+- `kubectl` — installed (via [official docs](https://kubernetes.io/docs/tasks/tools/) or `brew install kubectl`)
+- ~5 GB free disk space
+- ~2GB free RAM (kind cluster runs in that)
+
+**Script Options:**
+
+```bash
+# Create a new cluster (or use existing)
+bash scripts/init-cluster.sh
+
+# Recreate the cluster (wipe and start fresh)
+bash scripts/init-cluster.sh --recreate
+
+# Show help
+bash scripts/init-cluster.sh --help
+```
+
+**After setup:**
+1. Run the exam-setup script to configure aliases: `bash scripts/exam-setup.sh`
+2. Verify connection: `kubectl get nodes` — should show one node `cka-practice-control-plane`
+3. Start an exercise: `cd exercises/01-pod-basics && cat README.md`
+
+### Using Your Own Cluster
+
+If you already have:
+- A kubeadm cluster (bare metal / VMs)
+- An existing kind cluster
+- A cloud cluster (EKS, GKE, AKS) — **not recommended for CKA practice** (different tooling)
+
+Then skip init-cluster.sh and just run:
+```bash
+bash scripts/exam-setup.sh        # Configure aliases, etc.
+kubectl get nodes                 # Verify connection
+cd exercises/01-pod-basics        # Start practicing
+```
 
 ---
 
