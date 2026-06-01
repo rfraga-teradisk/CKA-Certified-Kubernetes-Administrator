@@ -40,7 +40,55 @@ Create PersistentVolumes, PersistentVolumeClaims, and mount them into pods. This
 
 </details>
 
-## What tripped me up
+## Diagnostic: PVC Stuck in Pending (Reddit Feedback)
+
+**Common Issue:** PVC stays `Pending` even though PV exists. Here's the decision tree:
+
+```
+1. Is PV available?
+   └─ k get pv
+   └─ If no PV: CREATE it first
+   └─ If PV status is "Bound" → someone else claimed it, create a new PV
+
+2. Does PVC request match PV capacity?
+   └─ k describe pvc <name>
+   └─ Look for "Insufficient capacity" message
+   └─ PV capacity MUST be >= PVC request
+   └─ If not: create bigger PV or smaller PVC request
+
+3. Do accessModes match exactly?
+   └─ k describe pv <pv-name> → shows accessModes
+   └─ k describe pvc <pvc-name> → shows accessModes requested
+   └─ "ReadWriteOnce" ≠ "ReadWriteMany" → must match exactly
+   └─ If not: fix accessModes
+
+4. Does storageClassName match?
+   └─ k get pv <pv> → shows storageClassName
+   └─ k get pvc <pvc> → shows storageClassName
+   └─ BOTH must say "manual" (or same class name)
+   └─ Easy to miss: one says "manual", other says "standard"
+   └─ If not: make them match
+
+5. Problems still persist?
+   └─ k get events -n <ns> → look for PVC event errors
+   └─ Check node: does hostPath directory exist? `ssh node; ls /data/exercise-12`
+   └─ Check RBAC: does kubelet have permissions? (rare but possible)
+```
+
+**ReclaimPolicy Explained (Reddit: Often Confused)**
+- `Retain`: After PVC deleted, PV becomes Released (data stays on disk)
+  - Must manually delete PV or re-use it
+  - Safer for static provisioning
+- `Delete`: After PVC deleted, PV is automatically deleted (data destroyed)
+  - Use for dynamic provisioning (StorageClass)
+  - Risky for exercise: if you delete PVC, PV disappears
+
+**Access Modes Explained (Reddit: Candidates mix these up)**
+- `ReadWriteOnce (RWO)`: Only one Pod can mount (read+write). Single pod attachment.
+- `ReadOnlyMany (ROM)`: Multiple Pods can mount (read-only).
+- `ReadWriteMany (RWX)`: Multiple Pods can mount (read+write). Requires network storage (NFS, etc).
+- **Common exam mistake:** Using RWO then trying to mount same PVC on 2 Pods → fails
+- **Test this:** Try mounting same RWO PVC on 2 Pods → second Pod stays Pending
 
 > **Storage Binding Requires Name Exactness**
 > 

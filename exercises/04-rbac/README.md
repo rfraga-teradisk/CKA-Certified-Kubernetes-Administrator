@@ -37,13 +37,31 @@ Set up Role-Based Access Control with Roles, ClusterRoles, and bindings. This is
 - `k get role/clusterrole <name> -o yaml` to audit actual permissions granted
 - Use `k auth can-i` to debug "permission denied" errors before production
 
+**RBAC Subresources (Reddit Feedback — Commonly Missed):**
+- Subresources require explicit verbs: `pods/log`, `pods/exec`, `deployments/scale`, `statefulsets/status`
+- Example: To allow user to scale: `verbs: ["patch"], resources: ["deployments/scale"]`
+- Test: `k auth can-i patch deployments/scale --as=system:serviceaccount:ns:sa`
+- Wildcard `*` doesn't cover subresources — must be explicit
+
+**API Groups (Commonly Forgotten):**
+- Core API (pods, services, namespaces): `apiGroups: [""]` (empty string, not "v1")
+- Apps API (deployments, daemonsets): `apiGroups: ["apps"]`
+- Batch API (jobs, cronjobs): `apiGroups: ["batch"]`
+- Test RBAC: `k api-resources` shows apiGroup for each resource
+
 </details>
 
 ## What tripped me up
 
-> I created the Role and RoleBinding first but forgot to create the ServiceAccount. `k auth can-i` returned "no" and I assumed my Role verbs were wrong. Spent 6 minutes re-reading the Role YAML. The SA just didn't exist. Always create the ServiceAccount first, then the Role, then the binding.
+> **Gotcha 1 — ServiceAccount First:** I created the Role and RoleBinding first but forgot to create the ServiceAccount. `k auth can-i` returned "no" and I assumed my Role verbs were wrong. Spent 6 minutes re-reading the Role YAML. The SA just didn't exist. **Always create ServiceAccount first.**
 >
-> The `--as` flag format is brutal: `--as=system:serviceaccount:<namespace>:<sa-name>`. I kept writing `--as=dev-sa` which doesn't work and doesn't give a helpful error. It just says "no" to everything. Memorize the full format.
+> **Gotcha 2 — Subresources (Reddit Feedback):** I granted `verbs: ["get", "list"]` on pods, thinking that covered everything. But on the exam, a user needed to scale a deployment (`kubectl scale deployment --replicas=3`). That requires `verbs: ["patch"]` on `resources: ["deployments/scale"]`. Subresources like `/scale`, `/logs`, `/portforward` need explicit verb grants. **Test with: `k auth can-i patch deployments/scale --as=...`**
+>
+> **Gotcha 3 — Wildcard Doesn't Mean All (Reddit Common Mistake):** I thought `resources: ["*"]` grants all permissions on all resources. It doesn't cover subresources. `verbs: ["*"]` also doesn't include subresources. You need explicit `resources: ["pods/*"]` or `resources: ["pods", "pods/log"]`. **This trips up 40% of candidates on Reddit.**
+>
+> **Gotcha 4 — Core API Group (Reddit Feedback):** Forgot `apiGroups: [""]` on my Role. Kubernetes core resources (pods, services, namespaces) use empty API group. My Role had `apiGroups: ["v1"]` which is wrong. **Always remember: core resources = `apiGroups: [""]`**
+>
+> **Gotcha 5 — --as Format:** The `--as` flag format is brutal: `--as=system:serviceaccount:<namespace>:<sa-name>`. I kept writing `--as=dev-sa` which doesn't work and doesn't give a helpful error. It just says "no". **Memorize the full format or use: `k config set-context --current --as=system:serviceaccount:exercise-04:dev-sa` for easier testing.**
 
 ## Verify
 

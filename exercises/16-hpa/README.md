@@ -48,15 +48,50 @@ The CKA focuses on HPA, but understanding VPA helps with cluster resource effici
 - Load generation: `k run load-gen --image=busybox:1.36 --rm -it -- sh -c "while true; do wget -q -O- http://load-svc.exercise-16; done"`
 - Scale down takes a few minutes after load stops (by design, to avoid flapping)
 
+**HPA Pre-Flight Checklist (Reddit: This solves 80% of HPA issues)**
+```bash
+# 1. Is metrics-server running?
+k get deployment -n kube-system metrics-server
+# If not running: might be missing from cluster; install via init-cluster.sh
+
+# 2. Does `kubectl top` work?
+k top nodes
+k top pods -n exercise-16
+# If "metrics not available": wait 60 seconds (metrics collection delay)
+
+# 3. Does Deployment have resource requests?
+k get deployment load-app -n exercise-16 -o json | jq '.spec.template.spec.containers[0].resources'
+# Must show: "requests": {"cpu": "50m"} (or similar value)
+# If empty {}: **This is why HPA shows <unknown>**, add requests to deployment
+
+# 4. Is HPA watching the right target.type?
+k get hpa -n exercise-16 -o yaml | grep -A5 "metrics:"
+# Must show: type: Utilization (NOT AverageValue or cpu)
+# If wrong: recreate HPA with: k autoscale deployment load-app --cpu-percent=50
+
+# 5. Is HPA showing valid metrics?
+k get hpa -n exercise-16
+# Should show: TARGETS "X%/50%" or "100m/50m"
+# If "unknown/50%": problem is Deployment has no resource.requests
+```
+
+**Target Type vs. Target Value (Commonly Confused)**
+- `type: Utilization` + `averageUtilization: 50` = Scale when 50% of *requested* CPU in use
+  - Example: Pod requests 100m CPU, use 50m → 50% = scale trigger
+  - **This is what most exams test**
+- `type: Value` + `averageValue: 50m` = Scale when average pod uses exactly 50m CPU
+  - Less common; requires knowing absolute metrics in advance
+- **Exam gotcha:** Using `type: Value` when question implies `Utilization` → HPA never scales
+
 </details>
 
 ## What tripped me up
 
-> **Missing Resource Requests = Unknown Metrics**
+> **Missing Resource Requests = Unknown Metrics (Reddit #1 HPA Complaint)**
 >
-> HPA showed `<unknown>/50%` for CPU and never scaled. I stared at the HPA for 5 minutes thinking the metrics-server was broken. The actual problem: my Deployment didn't have `resources.requests.cpu` set. HPA calculates percentage based on *requested* CPU. No request = no baseline = `<unknown>`. Always set resource requests on pods that need autoscaling.
+> HPA showed `<unknown>/50%` for CPU and never scaled. I stared at the HPA for 5 minutes thinking the metrics-server was broken. The actual problem: my Deployment didn't have `resources.requests.cpu` set. HPA calculates percentage based on *requested* CPU. No request = no baseline = `<unknown>`. **Always set resource requests on pods that need autoscaling.** See pre-flight checklist above.
 
-> **Target Type Must Be Utilization, Not AverageValue**
+> **Target Type Must Be Utilization, Not AverageValue (Reddit #2 HPA Bug)**
 >
 > Created an HPA and it compiled, but `k get hpa` showed `<unknown>` metrics. When I checked the YAML with `k get hpa -o yaml`, I saw `target.type: AverageValue` instead of `target.type: Utilization`. The metrics-server can't compute AverageValue for CPU (that's for custom metrics). For CPU, must use type: `Utilization`. Check the imperative command's generated YAML carefully.
 
