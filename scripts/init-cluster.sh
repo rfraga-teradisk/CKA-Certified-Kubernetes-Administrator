@@ -14,7 +14,7 @@ set -euo pipefail
 
 CLUSTER_NAME="${CLUSTER_NAME:-cka-practice}"
 KIND_VERSION="${KIND_VERSION:-v0.31.0}"
-KUBE_VERSION="${KUBE_VERSION:-v1.35.1}"  # v1.35+ for native sidecar exercises
+KUBE_VERSION="${KUBE_VERSION:-v1.36.1}"  # v1.35+ for native sidecar exercises
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
 RECREATE=false
